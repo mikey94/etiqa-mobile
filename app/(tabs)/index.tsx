@@ -1,98 +1,123 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { fetchRatings } from '@/services/ratings.service';
+import { useEffect, useState } from 'react';
+import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { useDispatch, useSelector } from "react-redux";
+import { setData } from "../../redux/slices/ratings-slice";
+import type { RootState } from "../../redux/store";
+import type { Rating } from "../../types/ratingType";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const RatingItem = ({ rating }: { rating: Rating }) => {
+    return (
+        <View style={styles.ratingCardContainer}>
+            <Text style={styles.ratingCardTitle}>{rating.name}</Text>
+            <Text style={styles.ratingCardDescription}>{rating.description}</Text>
+            <View style={styles.subElementContainer}>
+                <View style={styles.userDataWrapper}>
+                    <Image source={{ uri: rating.owner.avatar_url }} alt="avatar" width={30} height={30} style={styles.userImage} />
+                    <Text style={styles.ownerName}>{rating.owner.login}</Text>
+                </View>
+                <Text style={styles.starCount}>⭐ {rating.stargazers_count}</Text>
+            </View>
+        </View>
+    )
+};
 
-export default function HomeScreen() {
+export default function RatingsScreen() {
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageCount, setPageCount] = useState(10);
+  const dispatch = useDispatch();
+  const savedData = useSelector((state: RootState) => state.rating.data);
+
+  const getRatings = async() => {
+        const response = await fetchRatings(pageNumber);
+        const data = await response;
+        return data
+  };
+
+  useEffect(() => {
+        const loadRatings = async () => {
+              try {
+                  const ratingsData = await getRatings();
+                  
+                  const dataRating = ratingsData.items as Rating[]
+                  
+                  dispatch(setData(dataRating));
+                  setPageCount(Math.ceil(ratingsData.total_count / 20));
+                }
+                catch (error) {
+                  console.error("Error fetching ratings:", error);
+                }
+        }
+        loadRatings();
+  }, [pageNumber]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <FlatList
+        data={savedData}
+        renderItem={({ item }) => <RatingItem rating={item} />}
+        keyExtractor={(item) => item.id.toString()}
+        onEndReachedThreshold={0.05}
+        onEndReached={() => {
+          setPageNumber(pageNumber+1)
+        }}
+        style={{ backgroundColor: '#24035e', width: '100%' }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#24035e'
+  },
+  ratingCardContainer: {
+    margin: 10,
+    width: '95%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+  },
+  ratingCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#fff',
+  },
+  ratingCardDescription: {
+    fontSize: 14,
+    color: '#e2e2e2ff',
+    marginBottom: 10,
+    marginTop: 5,
+  },
+  subElementContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10
+  },
+  userDataWrapper: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  userImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  ownerName: {
+    color: '#fff',
+  },
+  starCount: {
+    color: '#fff',
   },
 });
